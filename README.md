@@ -1,2 +1,2 @@
-# animated-guide
+# NixOS work
 Tracking my nixos install
