@@ -111,6 +111,10 @@ services.flatpak.enable = true;
   #   enableSSHSupport = true;
   # };
 
+  # Other configuration options...
+  boot.kernelParams = [ "pci=hpiosize=0" ];
+  system.activationScripts.gitUpdate = "/etc/nixos/git-update.sh";
+
   # List services that you want to enable:
 
   # Enable the OpenSSH daemon.
