@@ -12,6 +12,7 @@
   imports = [
     <nixos-hardware/microsoft/surface-pro/9>  # Surface Pro 9 hardware configuration.
     ./hardware-configuration.nix             # Hardware scan results.
+   # <home-manager/nixos>
   ];
 
   ###########################################
@@ -60,13 +61,13 @@
     };
   };
 
-#services.logind = {
-#  extraConfig = ''
-#    HandlePowerKey=ignore
-#    HandleSuspendKey=ignore
- #   HandleLidSwitch=ignore
-#  '';
-#};
+services.logind = {
+  extraConfig = ''
+    HandlePowerKey=ignore
+    HandleSuspendKey=ignore
+    HandleLidSwitch=ignore
+  '';
+};
 
   ###########################################
   # Networking
@@ -109,16 +110,16 @@
     desktopManager.plasma6.enable = true;                # Plasma desktop.
     desktopManager.cosmic.enable = true;                # Cosmic desktop.
     desktopManager.cosmic.xwayland.enable = true;       # XWayland for Cosmic.
-    displayManager.cosmic-greeter.enable = true;        # Cosmic greeter.
+ #   displayManager.cosmic-greeter.enable = true;        # Cosmic greeter.
     # Uncomment for SDDM display manager (if needed).
-    # displayManager.sddm.enable = true;
-    # displayManager.sddm.wayland.enable = true;
+    displayManager.sddm.enable = true;
+    displayManager.sddm.wayland.enable = true;
   };
 
   # Exclude specific Plasma packages.
-  environment.plasma6.excludePackages = with pkgs.kdePackages; [
-    xwaylandvideobridge
-  ];
+#  environment.plasma6.excludePackages = with pkgs.kdePackages; [
+#    xwaylandvideobridge
+#  ];
 
   ###########################################
   # Input Devices
@@ -159,6 +160,15 @@
     ];
   };
 
+#users.users.zane.isNormalUser = true;
+#home-manager.users.zane= { pkgs, ... }: {
+#  extraGroups = [ "wheel" ];  # Enable sudo for the user. 
+#  home.packages = [ pkgs.atool pkgs.httpie pkgs.pcloud];
+#  programs.bash.enable = true;
+#  home.stateVersion = "24.05"; # Please read the comment before changing. 
+#  nixpkgs.config.allowUnfree = true;
+#};
+
   ###########################################
   # Installed Programs and Packages
   ###########################################
@@ -172,6 +182,7 @@
     pcloud
     git
     vscode
+    libwacom
   #  (pkgs.rstudioWrapper.override {
   #    packages = with pkgs.rPackages; [
   #      ggplot2
