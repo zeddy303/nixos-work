@@ -1,154 +1,217 @@
-# Edit this configuration file to define what should be installed on
-# your system. Help is available in the configuration.nix(5) man page, on
-# https://search.nixos.org/options and in the NixOS manual (`nixos-help`).
+# configuration.nix
+# This file defines what should be installed on your NixOS system.
+# Help is available in the `configuration.nix(5)` man page or at https://search.nixos.org/options.
 
 { config, lib, pkgs, ... }:
 
 {
-  imports =
-    [ # Include the results of the hardware scan.
-      <nixos-hardware/microsoft/surface-pro/9>
-      ./hardware-configuration.nix
-    ];
+  ###########################################
+  # System Imports and Hardware Configuration
+  ###########################################
 
-  # Use the systemd-boot EFI boot loader.
+  imports = [
+    <nixos-hardware/microsoft/surface-pro/9>  # Surface Pro 9 hardware configuration.
+    ./hardware-configuration.nix             # Hardware scan results.
+  ];
+
+  ###########################################
+  # Boot and Kernel Configuration
+  ###########################################
+
+  # Boot loader configuration.
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
   boot.blacklistedKernelModules = [ "surface_gpe" ];
-  # Use latest kernel.
-#  boot.kernelPackages = pkgs.linuxPackages_latest;
+  
+  # Uncomment to use the latest kernel.
+  # boot.kernelPackages = pkgs.linuxPackages_latest;
 
-  networking.hostName = "gesar"; # Define your hostname.
-  # Pick only one of the below networking options.
-  # networking.wireless.enable = true;  # Enables wireless support via wpa_supplicant.
-  networking.networkmanager.enable = true;  # Easiest to use and most distros use this by default.
+  # Kernel parameters.
+  boot.kernelParams = ["pci=hpiosize=0" "acpi_enforce_resources=lax"];
 
-  # Set your time zone.
-  time.timeZone = "America/Denver";
+  systemd.services.enable-acpi-wakeup = {
+    description = "Enable ACPI wake-up devices";
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig = {
+      ExecStart = "${pkgs.bash}/bin/bash -c ''echo CNVW > /proc/acpi/wakeup; echo HDAS > /proc/acpi/wakeup''";
+     # ExecStart = ''
+     #   echo "CNVW" > /proc/acpi/wakeup
+     #   echo "HDAS" > /proc/acpi/wakeup
+     # '';
+      Type = "oneshot";
+    };
+  };
 
 
-  # Other configurations...
-  systemd.extraConfig = "DefaultTimeoutStopSec=10s";
 
-  # Configure network proxy if necessary
+  systemd.services.enable-usb-wakeup = {
+    description = "Enable USB wake-up devices";
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig = {
+      ExecStart = "${pkgs.bash}/bin/bash ${pkgs.writeText "enable-usb-wakeup.sh" ''
+        #!/bin/bash
+        for device in /sys/bus/usb/devices/*; do
+          if [ -w "$device/power/wakeup" ]; then
+            echo enabled > "$device/power/wakeup"
+          fi
+        done
+      ''}";
+      Type = "oneshot";
+    };
+  };
+
+#services.logind = {
+#  extraConfig = ''
+#    HandlePowerKey=ignore
+#    HandleSuspendKey=ignore
+ #   HandleLidSwitch=ignore
+#  '';
+#};
+
+  ###########################################
+  # Networking
+  ###########################################
+
+  networking.hostName = "gesar";  # Define your hostname.
+
+  # Network management.
+  networking.networkmanager.enable = true;  # Preferred option for most distros.
+  # Uncomment below if you need wireless support via wpa_supplicant.
+  # networking.wireless.enable = true;
+
+  # Proxy configuration (if needed).
   # networking.proxy.default = "http://user:password@proxy:port/";
   # networking.proxy.noProxy = "127.0.0.1,localhost,internal.domain";
 
-  # Select internationalisation properties.
+  ###########################################
+  # Localization and Timezone
+  ###########################################
+
+  # Timezone configuration.
+  time.timeZone = "America/Denver";
+
+  # Uncomment and configure for internationalization.
   # i18n.defaultLocale = "en_US.UTF-8";
   # console = {
   #   font = "Lat2-Terminus16";
   #   keyMap = "us";
-  #   useXkbConfig = true; # use xkb.options in tty.
+  #   useXkbConfig = true;  # Use xkb.options in tty.
   # };
 
-  # Enable the X11 windowing system.
- # services.xserver.enable = true;
-nixpkgs.config.allowUnfree = true;
+  ###########################################
+  # Desktop Environment and Display
+  ###########################################
+
+  nixpkgs.config.allowUnfree = true;
+
+  # Desktop environment.
   services = {
-    desktopManager.plasma6.enable = true;
-    #displayManager.sddm.enable = true;
-    #displayManager.sddm.wayland.enable = true;
+    desktopManager.plasma6.enable = true;                # Plasma desktop.
+    desktopManager.cosmic.enable = true;                # Cosmic desktop.
+    desktopManager.cosmic.xwayland.enable = true;       # XWayland for Cosmic.
+    displayManager.cosmic-greeter.enable = true;        # Cosmic greeter.
+    # Uncomment for SDDM display manager (if needed).
+    # displayManager.sddm.enable = true;
+    # displayManager.sddm.wayland.enable = true;
   };
-    services.desktopManager.cosmic.enable = true;  
-    services.displayManager.cosmic-greeter.enable = true;
-    services.desktopManager.cosmic.xwayland.enable = true;
-  # Configure keymap in X11
-  # services.xserver.xkb.layout = "us";
-  # services.xserver.xkb.options = "eurosign:e,caps:escape";
 
-environment.plasma6.excludePackages = with pkgs.kdePackages; [
-  # ... other packages you want to exclude
-  xwaylandvideobridge
-];
+  # Exclude specific Plasma packages.
+  environment.plasma6.excludePackages = with pkgs.kdePackages; [
+    xwaylandvideobridge
+  ];
 
-  # Enable CUPS to print documents.
+  ###########################################
+  # Input Devices
+  ###########################################
+
+  # Enable touchpad and input support.
+  services.libinput.enable = true;
+
+  ###########################################
+  # Printing and Sound
+  ###########################################
+
+  # Enable printing support.
   services.printing.enable = true;
 
-  # Enable sound.
-  # services.pulseaudio.enable = true;
-  # OR
+  # Enable sound using PipeWire.
   services.pipewire = {
     enable = true;
     pulse.enable = true;
   };
-services.flatpak.enable = true;
-  # Enable touchpad support (enabled default in most desktopManager).
-   services.libinput.enable = true;
 
-  # Define a user account. Don't forget to set a password with ‘passwd’.
+  ###########################################
+  # Flatpak Support
+  ###########################################
+
+  services.flatpak.enable = true;
+
+  ###########################################
+  # User Configuration
+  ###########################################
+
+  # Define user accounts.
   users.users.zane = {
     isNormalUser = true;
-    extraGroups = [ "wheel" ]; # Enable ‘sudo’ for the user.
+    extraGroups = [ "wheel" ];  # Enable sudo for the user.
     packages = with pkgs; [
       tree
     ];
   };
 
+  ###########################################
+  # Installed Programs and Packages
+  ###########################################
+
   programs.firefox.enable = true;
 
-  # List packages installed in system profile.
-  # You can use https://search.nixos.org/ to find more packages (and options).
+  # System-wide installed packages.
   environment.systemPackages = with pkgs; [
-    vim 
+    vim
     wget
     pcloud
     git
-    (pkgs.rstudioWrapper.override {
-      packages = with pkgs.rPackages; [
-        ggplot2
-        dplyr
-        xts
-      ];
-    })
+    vscode
+  #  (pkgs.rstudioWrapper.override {
+  #    packages = with pkgs.rPackages; [
+  #      ggplot2
+  #      dplyr
+  #      xts
+  #    ];
+  #  })
   ];
 
-  # Some programs need SUID wrappers, can be configured further or are
-  # started in user sessions.
-  # programs.mtr.enable = true;
-  # programs.gnupg.agent = {
-  #   enable = true;
-  #   enableSSHSupport = true;
-  # };
+  ###########################################
+  # Systemd Configuration
+  ###########################################
 
-  # Other configuration options...
-  boot.kernelParams = [ "pci=hpiosize=0" ];
-  system.activationScripts.gitUpdate = "/etc/nixos/git-update.sh";
+  # Extra systemd configurations.
+  systemd.extraConfig = "DefaultTimeoutStopSec=10s";
 
-  # List services that you want to enable:
+  ###########################################
+  # Activation Scripts
+  ###########################################
 
-  # Enable the OpenSSH daemon.
+  # Automatically update the Git repository with configuration changes.
+  #system.activationScripts.gitUpdate = "/etc/nixos/git-update.sh";
+
+  ###########################################
+  # Security and Firewall
+  ###########################################
+
+  # Uncomment below to enable OpenSSH.
   # services.openssh.enable = true;
 
-  # Open ports in the firewall.
+  # Configure firewall (if needed).
   # networking.firewall.allowedTCPPorts = [ ... ];
   # networking.firewall.allowedUDPPorts = [ ... ];
-  # Or disable the firewall altogether.
-  # networking.firewall.enable = false;
+  # networking.firewall.enable = false;  # Disable the firewall.
 
-  # Copy the NixOS configuration file and link it from the resulting system
-  # (/run/current-system/configuration.nix). This is useful in case you
-  # accidentally delete configuration.nix.
-  # system.copySystemConfiguration = true;
+  ###########################################
+  # System State Version
+  ###########################################
 
-  # This option defines the first version of NixOS you have installed on this particular machine,
-  # and is used to maintain compatibility with application data (e.g. databases) created on older NixOS versions.
-  #
-  # Most users should NEVER change this value after the initial install, for any reason,
-  # even if you've upgraded your system to a new NixOS release.
-  #
-  # This value does NOT affect the Nixpkgs version your packages and OS are pulled from,
-  # so changing it will NOT upgrade your system - see https://nixos.org/manual/nixos/stable/#sec-upgrading for how
-  # to actually do that.
-  #
-  # This value being lower than the current NixOS release does NOT mean your system is
-  # out of date, out of support, or vulnerable.
-  #
-  # Do NOT change this value unless you have manually inspected all the changes it would make to your configuration,
-  # and migrated your data accordingly.
-  #
-  # For more information, see `man configuration.nix` or https://nixos.org/manual/nixos/stable/options#opt-system.stateVersion .
-  system.stateVersion = "25.05"; # Did you read the comment?
-
+  # This defines the first version of NixOS installed on this machine.
+  # It ensures compatibility with older application data.
+  system.stateVersion = "25.05";  # Do not change unless necessary.
 }
-
