@@ -1,5 +1,5 @@
 # NixOS work
-Tracking my nixos install
+Tracking my nixos install just in case I ever want to go back (I don't, it's too restrictive for a main OS for tinkering)
 
 System is Surface Pro 9
 Installed manually 
